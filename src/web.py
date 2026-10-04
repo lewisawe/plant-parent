@@ -41,16 +41,26 @@ app = Flask(__name__, template_folder=_TEMPLATES)
 
 # --- Friendly presentation helpers (display only; no prediction logic here) ---
 
-# Map raw next_action strings -> (emoji, friendly verb). Urgency (red vs green)
-# is decided by _card_view below, not by this table.
+# Map raw next_action strings -> (emoji, friendly verb). The emoji is a tiny
+# aria-hidden flourish only; the tier (urgent/soon/happy) is decided by the
+# resolver below, not by this table.
 _ACTION_LABELS = {
     "water_today": ("💧", "Water today"),
     "move_to_light": ("☀️", "Move to brighter light"),
     "fine": ("✅", "Happy as is"),
 }
 
-# Actions that mean "this plant needs you now" -> red/urgent treatment.
-_URGENT_ACTIONS = {"water_today", "move_to_light"}
+# A plant counts as "happy" only when it is fine AND comfortably far from
+# trouble. Below this horizon a "fine" plant is still a gentle heads-up.
+_HAPPY_MIN = 14
+
+# Horizon (days) over which the thirst gauge maps days-until-trouble -> 0..1.
+_GAUGE_HORIZON = 14
+
+# SOON plants are capped so the gauge never reads "full / nothing to do" — it
+# should say "topping-up needed soon". This is a PRESENTATION choice only; the
+# raw days_until_trouble shown in the text stays truthful.
+_SOON_GAUGE_CAP = 0.55
 
 
 def _days_phrase(action: str, days: int) -> str:
@@ -63,23 +73,72 @@ def _days_phrase(action: str, days: int) -> str:
     return f"fine for {days} day{'s' if days != 1 else ''}"
 
 
+def _tier(action: str, days: int) -> str:
+    """Resolve the 3-tier urgency class (display-only; no prediction logic).
+
+    urgent : act now (overdue / water today)
+    happy  : fine and comfortably far from trouble
+    soon   : everything else, e.g. the succulent's move_to_light heads-up
+    """
+    if action == "water_today" or days <= 0:
+        return "urgent"
+    if action == "fine" and days >= _HAPPY_MIN:
+        return "happy"
+    return "soon"
+
+
+def _gauge(tier: str, days: int) -> tuple[float, str]:
+    """Map days-until-trouble -> (fill fraction 0..1, accessible level word).
+
+    Fraction = clamp(days / horizon). SOON tiers are capped (see cap constant)
+    so a heads-up never looks perfectly full. The raw days text is untouched.
+    """
+    fraction = days / _GAUGE_HORIZON
+    fraction = max(0.0, min(1.0, fraction))
+    if tier == "soon":
+        fraction = min(fraction, _SOON_GAUGE_CAP)
+    if fraction <= 0.12:
+        level = "empty"
+    elif fraction < 0.5:
+        level = "low"
+    elif fraction < 0.85:
+        level = "half full"
+    else:
+        level = "full"
+    return round(fraction, 3), level
+
+
 def _card_view(result: dict) -> dict:
     """Turn a raw predict() result dict into a display-ready card dict."""
     action = result["next_action"]
     days = int(result["days_until_trouble"])
     emoji, verb = _ACTION_LABELS.get(action, ("🪴", action.replace("_", " ").title()))
-    urgent = action in _URGENT_ACTIONS or days <= 0
+    tier = _tier(action, days)
+    gauge_fraction, gauge_level = _gauge(tier, days)
+    status_word = {
+        "urgent": "Needs you now",
+        "soon": "Heads-up",
+        "happy": "All good",
+    }[tier]
+    # Species adds info only when it meaningfully differs from the display name;
+    # otherwise we drop it (the forgetful friend doesn't need a restatement).
+    name = result["name"]
+    species_pretty = result["species"].replace("_", " ").title()
+    species = species_pretty if species_pretty.lower() != name.lower() else ""
     return {
-        "name": result["name"],
-        "species": result["species"].replace("_", " ").title(),
+        "name": name,
+        "species": species,
+        "action": action,  # raw key -> lets the template pick the mood/CTA
         "action_emoji": emoji,
         "action_label": verb,
         "days_phrase": _days_phrase(action, days),
-        "status_dot": "🔴" if urgent else "🟢",
-        "status_word": "Needs you" if urgent else "All good",
-        "urgent": urgent,
-        # sort key: most urgent (lowest days) first
-        "_sort": (0 if urgent else 1, days),
+        "tier": tier,
+        "status_word": status_word,
+        "actionable": tier != "happy",
+        "gauge_fraction": gauge_fraction,  # 0..1 display-only
+        "gauge_level": gauge_level,  # accessible word for aria-label
+        # sort key: urgent -> soon -> happy, then soonest trouble first
+        "_sort": ({"urgent": 0, "soon": 1, "happy": 2}[tier], days),
     }
 
 
@@ -110,7 +169,8 @@ def _triage() -> tuple[list[dict], dict]:
 @app.route("/")
 def index():
     cards, badge = _triage()
-    return render_template("triage.html", cards=cards, badge=badge)
+    owner = os.environ.get("PLANT_OWNER", "My friend")
+    return render_template("triage.html", cards=cards, badge=badge, owner=owner)
 
 
 @app.route("/api/triage")
