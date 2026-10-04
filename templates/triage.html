@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plant Parent — what needs you today</title>
+  <style>
+    /* ---- Self-contained styling: no CDN, no build step, system fonts ---- */
+    :root {
+      --ink: #1f2d27;          /* near-black green, body text (AA on cream) */
+      --ink-soft: #566b60;     /* muted species text (AA on white) */
+      --cream: #f3f7ee;
+      --paper: #ffffff;
+      --leaf: #2f7d50;         /* calm green */
+      --leaf-deep: #1f5d3a;
+      --urgent: #b23b2e;       /* warm red (AA on white) */
+      --urgent-soft: #fdecea;
+      --calm-soft: #e8f3ea;
+      --amber: #8a5a00;        /* offline badge text (AA on soft amber) */
+      --amber-soft: #fbf0d6;
+      --ring: rgba(31, 93, 58, 0.12);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        Helvetica, Arial, "Noto Sans", sans-serif;
+      color: var(--ink);
+      /* soft botanical gradient in greens/creams */
+      background:
+        radial-gradient(1200px 600px at 15% -10%, #dcefd9 0%, transparent 60%),
+        radial-gradient(1000px 700px at 110% 10%, #e7f3df 0%, transparent 55%),
+        linear-gradient(160deg, #f6faf1 0%, #eef5e6 55%, #e8f1e0 100%);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 56px 20px 72px;
+    }
+    header { text-align: center; margin-bottom: 10px; }
+    h1 {
+      font-size: clamp(28px, 5vw, 42px);
+      line-height: 1.1;
+      margin: 0 0 8px;
+      letter-spacing: -0.02em;
+      font-weight: 800;
+    }
+    .subtitle {
+      margin: 0 auto;
+      max-width: 36ch;
+      color: var(--ink-soft);
+      font-size: clamp(15px, 2.4vw, 18px);
+    }
+
+    /* ---- honest data-source badge ---- */
+    .badge-row { display: flex; justify-content: center; margin: 22px 0 34px; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 600;
+      border: 1px solid transparent;
+    }
+    .badge.live {
+      background: var(--calm-soft);
+      color: var(--leaf-deep);
+      border-color: rgba(31, 93, 58, 0.25);
+    }
+    .badge.offline {
+      background: var(--amber-soft);
+      color: var(--amber);
+      border-color: rgba(138, 90, 0, 0.3);
+    }
+
+    /* ---- responsive card grid ---- */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 22px;
+    }
+    .card {
+      position: relative;
+      background: var(--paper);
+      border-radius: 18px;
+      padding: 24px 24px 22px 28px;
+      box-shadow: 0 10px 30px var(--ring), 0 2px 6px rgba(0,0,0,0.04);
+      overflow: hidden;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+    .card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 20px 44px rgba(31,93,58,0.18), 0 4px 10px rgba(0,0,0,0.06);
+    }
+    /* colored left accent bar per urgency */
+    .card::before {
+      content: "";
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 7px;
+    }
+    .card.urgent::before { background: linear-gradient(var(--urgent), #d1583f); }
+    .card.calm::before   { background: linear-gradient(var(--leaf), var(--leaf-deep)); }
+
+    .card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .plant-name {
+      font-size: 22px;
+      font-weight: 800;
+      margin: 0;
+      letter-spacing: -0.01em;
+    }
+    .species {
+      margin: 2px 0 0;
+      color: var(--ink-soft);
+      font-size: 14px;
+    }
+    .leaf-emoji { font-size: 26px; line-height: 1; }
+
+    /* status chip */
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin-top: 18px;
+      padding: 7px 13px;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .chip.urgent { background: var(--urgent-soft); color: var(--urgent); }
+    .chip.calm   { background: var(--calm-soft);   color: var(--leaf-deep); }
+
+    .action {
+      margin: 16px 0 4px;
+      font-size: 17px;
+      font-weight: 700;
+    }
+    .days {
+      margin: 0;
+      color: var(--ink-soft);
+      font-size: 15px;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      color: var(--ink-soft);
+      font-size: 13px;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .card { transition: none; }
+      .card:hover { transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>🪴 Plant Parent</h1>
+      <p class="subtitle">Mesh&rsquo;s plants &mdash; what needs you today.</p>
+    </header>
+
+    <div class="badge-row">
+      <span class="badge {{ 'live' if badge.live else 'offline' }}">
+        <span aria-hidden="true">{{ badge.icon }}</span>
+        <span>{{ badge.text }}</span>
+      </span>
+    </div>
+
+    <main class="grid">
+      {% for c in cards %}
+      <article class="card {{ 'urgent' if c.urgent else 'calm' }}">
+        <div class="card-top">
+          <div>
+            <h2 class="plant-name">{{ c.name }}</h2>
+            <p class="species">{{ c.species }}</p>
+          </div>
+          <span class="leaf-emoji" aria-hidden="true">🪴</span>
+        </div>
+
+        <span class="chip {{ 'urgent' if c.urgent else 'calm' }}">
+          <span aria-hidden="true">{{ c.status_dot }}</span>
+          <span>{{ c.status_word }}</span>
+        </span>
+
+        <p class="action">{{ c.action_emoji }} {{ c.action_label }}</p>
+        <p class="days">{{ c.days_phrase }}</p>
+      </article>
+      {% endfor %}
+    </main>
+
+    <footer>
+      Advice per plant from the Plant Parent triage core.
+    </footer>
+  </div>
+</body>
+</html>

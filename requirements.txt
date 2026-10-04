@@ -1,0 +1,25 @@
+# Plant Parent — pinned dependencies (CPU-only, Python 3.11 venv)
+#
+# TabPFN backend decision (recorded 2026-10-04):
+#   LOCAL `tabpfn` is the chosen/primary backend and IS installed. It needs CPU
+#   torch from the PyTorch CPU wheel index (installed separately, see below) and,
+#   on first use, a one-time license token (TABPFN_TOKEN) to download model
+#   weights from Prior Labs. The hosted `tabpfn-client` is installed as the
+#   documented single-attempt fallback and uses the same account/token.
+#   Both sit behind one predict() interface in src/predict.py.
+#
+# torch is NOT pinned here because it must come from the CPU index, not PyPI.
+# Install it first with:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+# (installed version in this env: torch==2.14.1+cpu)
+
+tabpfn==9.1.0
+tabpfn-client==0.6.1
+temporalio==1.34.0
+
+# Web UI: a minimal Flask page (src/web.py + templates/triage.html) that renders
+# the SAME triage via PlantPredictor.predict(current_plants()). No Temporal needed.
+flask==3.1.3
+
+# A CLI table (src/app.py) and the Flask web UI (src/web.py) are both views over
+# the shared prediction core in src/predict.py.
