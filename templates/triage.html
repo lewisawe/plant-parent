@@ -386,7 +386,7 @@
           </div>
           <span class="status">
             <span class="sdot" aria-hidden="true"></span>
-            <span>{{ c.status_word }}</span>
+            <span class="sword">{{ c.status_word }}</span>
           </span>
         </div>
 
@@ -511,16 +511,28 @@
         if (!check) return;
 
         var fill = tile.querySelector('.gauge .fill');
+        var gauge = tile.querySelector('.gauge');
+        var daysEl = tile.querySelector('.days');
+        var statusWordEl = tile.querySelector('.status .sword');
         var startFraction = parseFloat(tile.getAttribute('data-fraction')) || 0;
         var startTier = tile.getAttribute('data-tier');
+        // remember the originals so Undo restores them exactly
+        var origDays = daysEl ? daysEl.textContent : '';
+        var origStatus = statusWordEl ? statusWordEl.textContent : '';
+        var origGaugeLabel = gauge ? gauge.getAttribute('aria-label') : '';
+        var isWater = startTier === 'urgent';
+        var freshDays = isWater ? 'watered just now' : 'sorted just now';
 
         check.addEventListener('click', function () {
           tile.classList.add('done');
-          // plant perks up: recolor toward happy + gauge rises to ~0.85
+          // plant perks up: recolor toward happy + gauge rises
           tile.classList.remove('tier-' + startTier);
           tile.classList.add('tier-happy');
           if (fill) { fill.style.height = '85%'; }
-          // nudge screen-reader users without hijacking focus
+          if (gauge) { gauge.setAttribute('aria-label', 'Water level: topped up'); }
+          // move the words in step with the water, so the card is consistent
+          if (daysEl) { daysEl.textContent = freshDays; }
+          if (statusWordEl) { statusWordEl.textContent = 'All good'; }
           if (undo) { undo.focus(); }
         });
 
@@ -530,6 +542,9 @@
             tile.classList.remove('tier-happy');
             tile.classList.add('tier-' + startTier);
             if (fill) { fill.style.height = (startFraction * 100) + '%'; }
+            if (gauge) { gauge.setAttribute('aria-label', origGaugeLabel); }
+            if (daysEl) { daysEl.textContent = origDays; }
+            if (statusWordEl) { statusWordEl.textContent = origStatus; }
             check.focus();
           });
         }
